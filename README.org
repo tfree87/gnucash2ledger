@@ -13,6 +13,9 @@
 
 * gnucash2ledger
 gnucash2ledger is a Python script based on the Github Gist by nonducor ([[https://gist.github.com/nonducor/ddc97e787810d52d067206a592a35ea7][nonducor/gcash2ledger.py]]). This Python script will take an /uncompressed/ Gnucash file saved in the default XML format and write a text file in a format compatible with John Wiegley's [[https://www.ledger-cli.org/][ledger]] program (Github: [[https://github.com/ledger/ledger][ledger/ledger]]).
+
+/Note: gnucash2ledger will only work if the Gnucash data is saved in an uncompressed XML file. If you prefer to save your Gnucash in SQL database formats, checkout the [[https://github.com/sdementen/piecash][piecash]] project./
+
 ** Features
 gnucash2ledger has the following features:
 - Allows for export to a text file or prints results to standard output
@@ -23,14 +26,14 @@ gnucash2ledger has the following features:
 - Provides an option to display progress bars (useful for converting very long Gnucash files)
 ** Usage
 
-#+begin_example:
+#+begin_example
 gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] input
 #+end_example
 
 *** Command Line Arguments
 Output from =gnucash2ledger -h=
 
-#+begin_example:
+#+begin_example
 positional arguments:
   input                 a Gnucash XML file to be read
 
@@ -55,4 +58,8 @@ optional arguments:
                         transaction split.
   -s, --use-symbols     Replaces currency codes with currency symbols.
   -v, --version         show program's version number and exit
-  #+end_example:
+  #+end_example
+** Requirements
+gnucash2ledger requires that the following Python packages are installed:
+- currency-symbols
+- tqdm
