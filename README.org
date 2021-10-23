@@ -1,0 +1,58 @@
+#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline
+#+options: author:t broken-links:nil c:nil creator:nil
+#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
+#+options: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
+#+options: timestamp:t title:t toc:t todo:t |:t
+#+title: README
+#+date: <2021-10-23 Sat>
+#+author: Thomas Freeman
+#+language: en
+#+select_tags: export
+#+exclude_tags: noexport
+#+creator: Emacs 26.3 (Org mode 9.4.6)
+
+* gnucash2ledger
+gnucash2ledger is a Python script based on the Github Gist by nonducor ([[https://gist.github.com/nonducor/ddc97e787810d52d067206a592a35ea7][nonducor/gcash2ledger.py]]). This Python script will take an /uncompressed/ Gnucash file saved in the default XML format and write a text file in a format compatible with John Wiegley's [[https://www.ledger-cli.org/][ledger]] program (Github: [[https://github.com/ledger/ledger][ledger/ledger]]).
+** Features
+gnucash2ledger has the following features:
+- Allows for export to a text file or prints results to standard output
+- Exports commodity definitions, account definitions, and transactions with splits
+- Supports multiple commodities/currencies
+- Provides and option to insert a default header for Emacs ~ledger-mode~ (Github: [[https://github.com/ledger/ledger-mode][ledger/ledger-mode]])
+- Currency codes can be replaced by currency symbols using Python CurrencySymbols library
+- Provides an option to display progress bars (useful for converting very long Gnucash files)
+** Usage
+
+#+begin_example:
+gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] input
+#+end_example
+
+*** Command Line Arguments
+Output from =gnucash2ledger -h=
+
+#+begin_example:
+positional arguments:
+  input                 a Gnucash XML file to be read
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c, --cleared         Marks all transactions as cleared and place a cleared (*) mark before the transaction heading.
+  -d DATE_FORMAT, --date-format DATE_FORMAT
+                        A string representing the desired format of dates in the ledger file. Defaults to the ISO standard format: '%Y-%m-%d'.
+  -e, --emacs-header    Adds a default header for ledger-mode in Emacs.
+  -f, --force-clobber   Force clobbering of and output file i the file already exists. If this option is provided, the output file will overwrite the existing file
+                        with the same name.
+  -na, --no-account-defs
+                        Prevents output of account definitions to the output file.
+  -nc, --no-commodity-defs
+                        Prevent output of commodities to the output file.
+  -nt, --no-transations
+                        Prevent output of transactions to the output file. NOTE: This will cause ledger to throw an error if executed on this file.
+  -o FILENAME, --output FILENAME
+                        Name of file to store the output results.
+  -p, --show-progress   Show script status progress while reading and writing data.
+  --payee-metadata      Takes the information entered into the 'Description' field in Gnucash splits and adds them as a tagged '; Payee:' memo for the corresponding
+                        transaction split.
+  -s, --use-symbols     Replaces currency codes with currency symbols.
+  -v, --version         show program's version number and exit
+  #+end_example:
