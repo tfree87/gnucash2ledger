@@ -363,7 +363,8 @@ def createParser():
     parser = argparse.ArgumentParser(
         description="Converts a Gnucash XML file to a text file that can be processed by the Ledger and hledger command line programs.",
         add_help=True,
-        epilog="NOTE: Gnucash files must be saved as uncompressed XML for the conversion to work!",
+        epilog="NOTE: Gnucash files MUST be saved as uncompressed XML for the conversion to work!\nArguments may also be passed passing a text file with the '@' prefix to gnucash2ledger. This file must have a single argument per line.",
+        fromfile_prefix_chars='@',
     )
     parser.version = "0.1"
     parser.add_argument("input", help="a Gnucash XML file to be read")
