@@ -97,7 +97,7 @@ class Commodity:
             self.id = orElse(e.find("cmdty:id", nss)).text
         self.name = orElse(e.find("cmdty:name", nss)).text
 
-    def toLedgerFormat(self):
+    def __str__(self):
         """Format the commodity in a way good to be interpreted by ledger."""
         outPattern = "commodity {id}\n" "    note {name} ({space}:{id})\n"
 
@@ -131,7 +131,7 @@ class Account:
             prefix = ""  # ROOT will not be displayed
         return prefix + self.name
 
-    def toLedgerFormat(self):
+    def __str__(self):
         outPattern = (
             "account {fullName}\n"
             "    note {description} (type: {type})\n"
@@ -247,7 +247,7 @@ class Split:
 
 class Transaction:
     
-    def __init__(self, accountDb, e, useSymbols=False):
+    def __init__(self, accountDb, e, allCleared=False, useSymbols=False, dateFormat="%Y-%m-%d", payeeMetaData=False):
         """Constructs a Transaction object
 
         An object containing data about a Gnucash transaction that can
@@ -266,6 +266,9 @@ class Transaction:
         
         """
         self.accountDb = accountDb
+        self.allCleared = allCleared
+        self.dateFormat = dateFormat
+        self.payeeMetaData = payeeMetaData
         self.date = dateutil.parser.parse(e.find("trn:date-posted/ts:date", nss).text)
         self.useSymbols = useSymbols
         if self.useSymbols:
@@ -277,7 +280,7 @@ class Transaction:
             Split(accountDb, s) for s in e.findall("trn:splits/trn:split", nss)
         ]
         
-    def toLedgerFormat(self, allCleared=False, dateFmt="%Y-%m-%d", payeeMetaData=False):
+    def __str__(self):
         """Convert a Gnucash transaction to a multi-line string formatted for ledger
 
         Takes a transaction from a GnucashData object and converts it
@@ -303,7 +306,7 @@ class Transaction:
             Assets:Checking          -$1.00
         
         """
-        if allCleared:
+        if self.allCleared:
             outPattern = "{date} * {description}\n" "{splits}\n"
             splits = "\n".join(s.toLedgerFormat(self.commodity, allCleared=True, useSymbols=self.useSymbols) for s in self.splits)
         else:
@@ -312,11 +315,11 @@ class Transaction:
                 s.toLedgerFormat(self.commodity,
                                  allCleared=False,
                                  useSymbols=self.useSymbols,
-                                 payeeMetaData=payeeMetaData,
+                                 payeeMetaData=self.payeeMetaData,
                 ) for s in self.splits)
 
         return outPattern.format(
-            date=self.date.strftime(dateFmt),
+            date=self.date.strftime(self.dateFormat),
             description=self.description,
             splits=splits,
         )
@@ -361,7 +364,7 @@ class emacsHeader:
 
 class GnucashData:
     
-    def __init__(self, inputFile, useSymbols=False, showProgress=False):
+    def __init__(self, inputFile, useSymbols=False, showProgress=False, allCleared=False, payeeMetaData=False, dateFormat="%Y-%m-%d"):
         """Constructs a GnucashData object
 
         Parameters
@@ -413,9 +416,17 @@ class LedgerConvertor():
         self.emacsHeader = args.emacs_header
         self.outFile = args.output[0] if args.output else None
         self.dateFormat = args.date_format[0]
-        self.gcashData = GnucashData(args.INPUT_FILE, useSymbols=self.useSymbols, showProgress=self.showProgress)
-    
+        self.gcashData = GnucashData(
+            args.INPUT_FILE,
+            useSymbols=self.useSymbols,
+            showProgress=self.showProgress,
+            allCleared=self.allCleared,
+            dateFormat=self.dateFormat,
+            payeeMetaData=self.payeeMetaData,
+        )
+
     def addCommodities(self):
+        """ Returns a multi-line string of commodities in Ledger format"""
         results = ";; Commodity Definitions\n\n"
         
         if self.showProgress:
@@ -423,36 +434,38 @@ class LedgerConvertor():
             
         for c in tqdm(self.gcashData.commodities, disable=not(self.showProgress)):
             results += "\n"
-            results += c.toLedgerFormat()
+            results += str(c)
 
         return results
 
     def addAccounts(self):
+        """ Returns a multi-line string of accounts in Ledger format"""
         results = "\n\n;; Account Definitions\n\n"
         
         if self.showProgress:
             print("Converting account descriptions to ledger format:")
             
-        for a in tqdm(self.gcashData.accountDb.values(), disable=not(self.showProgress)):
+        for a in tqdm(self.gcashData.accountDb.values(),
+                      disable=not(self.showProgress)):
             if a.used:
                 results += "\n"
-                results += a.toLedgerFormat()
+                results += str(a)
                 
         return results
 
     def addTransactions(self):
+        """ Returns and multi-line string of transactions in Ledger format"""
         results = "\n\n;;Transactions\n\n"
         
         if self.showProgress:
             print("Converting transactions to ledger format:")        
             
-        for t in tqdm(sorted(self.gcashData.transactions, key=lambda x: x.date), disable=not(self.showProgress)):
+        for t in tqdm(
+                sorted(self.gcashData.transactions,
+                       key=lambda x: x.date),
+                disable=not(self.showProgress)):
             results += "\n"
-            results += t.toLedgerFormat(
-                allCleared=self.allCleared,
-                dateFmt=self.dateFormat,
-                payeeMetaData=self.payeeMetaData,
-            )
+            results += str(t)
             
         return results
 
@@ -483,9 +496,8 @@ class LedgerConvertor():
         return output
 
 
-
 def getCurrencySymbol(currencyCode): 
-    """Gets the currency symbol based on the three-letter currency code if available
+    """Returns the currency symbol based on the three-letter currency code if available
 
     Returns a string representation of a currency based on the
     three-letter code for that currency. For example, the string 'USD'
