@@ -1,5 +1,6 @@
 #! /usr/bin/python3
 
+
 """ gnucash2ledger.py
 
 This script creates a text file formmatted to work with the Ledger and hledger
@@ -9,6 +10,7 @@ The Gnucash MUST be saved as an uncompressed XML file from within Gnuchash. This
 script will parse the XML file and will not modify the original Gnucash file.
 
 """
+
 
 import os
 import sys
@@ -604,6 +606,7 @@ def createParser():
 
 
 def main():
+    """Converts Gnucash XML to Ledger text file from command-line arguments """
     # Create the ArgumentParser object to collect command line arguments
     parser = createParser()
     
@@ -627,5 +630,8 @@ def main():
     else:
         print(convert2Ledger(args))
 
+
 if __name__ == "__main__":
+    # This will only execute when running this module directly.
+    # This will call the main() function to start the script.
     main()
