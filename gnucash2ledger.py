@@ -77,10 +77,10 @@ def orElse(var, default=""):
 class Commodity:
     def __init__(self, e, useSymbols=False):
         """Constructs a commodity object.
-
+        
         Constructs a commodity object containing information about a
         currency, stock, or other commodity.
-
+        
         Parameters
         ----------
         e : xml.etree.ElementTree
@@ -88,7 +88,7 @@ class Commodity:
         useSymbols : bool
             A boolean determining whether currency symbols (True) or
             codes (False) should be used
-
+        
         """
         self.space = orElse(e.find("cmdty:space", nss)).text
         if useSymbols:
@@ -96,11 +96,11 @@ class Commodity:
         else:
             self.id = orElse(e.find("cmdty:id", nss)).text
         self.name = orElse(e.find("cmdty:name", nss)).text
-
+        
     def __str__(self):
         """Format the commodity in a way good to be interpreted by ledger."""
         outPattern = "commodity {id}\n" "    note {name} ({space}:{id})\n"
-
+        
         return outPattern.format(**self.__dict__)
 
 
@@ -143,7 +143,7 @@ class Account:
 
 class Split:
     
-    def __init__(self, accountDb, e):
+    def __init__(self, accountDb, e, commodity, allCleared=False, useSymbols=False, payeeMetaData=False):
         """Constructs a Split object containing transaction split data
 
         Constructs a transaction split which contains data on the
@@ -165,6 +165,10 @@ class Split:
         self.reconciled = e.find("split:reconciled-state", nss).text == "y"
         self.accountId = e.find("split:account", nss).text
         self.memo = e.find('split:memo', nss)
+        self.allCleared = allCleared
+        self.useSymbols = useSymbols
+        self.payeeMetaData = payeeMetaData
+        self.commodity = commodity
         accountDb[self.accountId].used = True
 
         # Some special treatment for value and quantity
@@ -186,19 +190,20 @@ class Split:
         """
         return self.accountDb[self.accountId]
 
-    def toLedgerFormat(self, commodity, allCleared=False, useSymbols=False, payeeMetaData=False):
+    def __str__(self):
         """Outputs a string for each transaction split formatted for ledger"""
         
         outPattern = "    {flag}{accountName}{spaces}{value}{memo}"
+        commodity = self.commodity
 
         if commodity == self.getAccount().commodity:
-            if useSymbols:
+            if self.useSymbols:
                 value = "{commodity}{value:,.2f}".format(commodity=commodity, value=float(self.value))
             else:
                 value = "{value:,.2f} {commodity}".format(commodity=commodity,
                                                  value=float(self.value))
         else:
-            if useSymbols:
+            if self.useSymbols:
                 conversion = "{destCmdty}{destValue} @@ {commodity}{value}"
             else:
                 conversion = "{destValue} {destCmdty} @@ {value} {commodity}"
@@ -212,7 +217,7 @@ class Split:
             
         # Set the value for the flag, account name, memo, and number of spaces
         # between the account name and value
-        if (self.reconciled and not(allCleared)):
+        if (self.reconciled and not(self.allCleared)):
             flag = "* "
         else:
             flag = ""
@@ -220,7 +225,7 @@ class Split:
         numSpaces = 76 - len(flag) - len(accountName) - len(value)
         spaces = "".join([" " + " " * numSpaces])
         memo = ""
-        if self.memo is not None and payeeMetaData:
+        if self.memo is not None and self.payeeMetaData:
             memo = "  ; Payee: " + self.memo.text
             
         return outPattern.format(
@@ -242,6 +247,7 @@ class Split:
             intValue = "0" * (n + 1 - len(intValue)) + intValue
         if signFlag:
             intValue = "-" + intValue
+            
         return intValue[:-n] + "." + intValue[-n:]
 
 
@@ -266,19 +272,22 @@ class Transaction:
         
         """
         self.accountDb = accountDb
-        self.allCleared = allCleared
+        self.cleared = allCleared
         self.dateFormat = dateFormat
-        self.payeeMetaData = payeeMetaData
         self.date = dateutil.parser.parse(e.find("trn:date-posted/ts:date", nss).text)
-        self.useSymbols = useSymbols
-        if self.useSymbols:
+        if useSymbols:
             self.commodity = getCurrencySymbol(e.find("trn:currency/cmdty:id", nss).text)
         else:
             self.commodity = e.find("trn:currency/cmdty:id", nss).text
+
         self.description = e.find("trn:description", nss).text
-        self.splits = [
-            Split(accountDb, s) for s in e.findall("trn:splits/trn:split", nss)
-        ]
+        self.splits = [Split(accountDb,
+                             s,
+                             self.commodity,
+                             allCleared=self.cleared,
+                             useSymbols=useSymbols,
+                             payeeMetaData=payeeMetaData)
+                       for s in e.findall("trn:splits/trn:split", nss)]
         
     def __str__(self):
         """Convert a Gnucash transaction to a multi-line string formatted for ledger
@@ -287,36 +296,20 @@ class Transaction:
         to a multi-line string in a format that can be processed by
         ledger-cli.
 
-        Parameters
-        ----------
-        allCleared : bool
-            A boolean determining if all transactions should be marked
-            as cleared (True) or not (False)
-        dateFmt : str
-            A string representing the transaction date format.
-        payeeMetaData : bool
-            A boolean determining whether metadata should be included
-            in the output transaction as a '; Payee:' memo.
-        
         Examples
         --------
-        >>> toLedgerFormat()
-        1999-01-01 Example Description
+        >>> __str__()
+        1999-01-01 * Example Description
             Expenses:Example          $1.00
             Assets:Checking          -$1.00
         
         """
-        if self.allCleared:
+        if self.cleared:
             outPattern = "{date} * {description}\n" "{splits}\n"
-            splits = "\n".join(s.toLedgerFormat(self.commodity, allCleared=True, useSymbols=self.useSymbols) for s in self.splits)
+            splits = "\n".join(str(s) for s in self.splits)
         else:
             outPattern = "{date} {description}\n" "{splits}\n"
-            splits = "\n".join(
-                s.toLedgerFormat(self.commodity,
-                                 allCleared=False,
-                                 useSymbols=self.useSymbols,
-                                 payeeMetaData=self.payeeMetaData,
-                ) for s in self.splits)
+            splits = "\n".join(str(s)for s in self.splits)
 
         return outPattern.format(
             date=self.date.strftime(self.dateFormat),
@@ -401,7 +394,11 @@ class GnucashData:
         if showProgress:
             print("Gathering transactions:")
         for xact in tqdm(book.findall("gnc:transaction", nss), disable=not(showProgress)):
-            self.transactions.append(Transaction(self.accountDb, xact, useSymbols=useSymbols))
+            self.transactions.append(Transaction(self.accountDb,
+                                                 xact,
+                                                 useSymbols=useSymbols,
+                                                 allCleared=allCleared,
+                                                 dateFormat=dateFormat))
 
 
 class LedgerConvertor():
