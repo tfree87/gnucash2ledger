@@ -415,6 +415,47 @@ class LedgerConvertor():
         self.dateFormat = args.date_format[0]
         self.gcashData = GnucashData(args.INPUT_FILE, useSymbols=self.useSymbols, showProgress=self.showProgress)
     
+    def addCommodities(self):
+        results = ";; Commodity Definitions\n\n"
+        
+        if self.showProgress:
+            print("Converting commodity descriptions to ledger format:")
+            
+        for c in tqdm(self.gcashData.commodities, disable=not(self.showProgress)):
+            results += "\n"
+            results += c.toLedgerFormat()
+
+        return results
+
+    def addAccounts(self):
+        results = "\n\n;; Account Definitions\n\n"
+        
+        if self.showProgress:
+            print("Converting account descriptions to ledger format:")
+            
+        for a in tqdm(self.gcashData.accountDb.values(), disable=not(self.showProgress)):
+            if a.used:
+                results += "\n"
+                results += a.toLedgerFormat()
+                
+        return results
+
+    def addTransactions(self):
+        results = "\n\n;;Transactions\n\n"
+        
+        if self.showProgress:
+            print("Converting transactions to ledger format:")        
+            
+        for t in tqdm(sorted(self.gcashData.transactions, key=lambda x: x.date), disable=not(self.showProgress)):
+            results += "\n"
+            results += t.toLedgerFormat(
+                allCleared=self.allCleared,
+                dateFmt=self.dateFormat,
+                payeeMetaData=self.payeeMetaData,
+            )
+            
+        return results
+
     def __call__(self):
         """Reads a Gnucash XML file and converts it to a ledger file.
         
@@ -428,56 +469,19 @@ class LedgerConvertor():
             An ArgumentParser object containing command line arguments
         
         """      
- 
-        # Generate output
         output = ""
-
-        # Add a header for ledger-mode in Emacs if requested
         if self.emacsHeader:
-            filename = ""
-            if self.outFile is not None:
-                filename = self.outFile
+            filename = self.outFile
             output += str(emacsHeader(filename=filename))
-
-        # Add the commodities definitions unless not requested
         if not self.noCommodities:
-            output += ";; Commodity Definitions\n\n"
-        
-            if self.showProgress:
-                print("Converting commodity descriptions to ledger format:")
-            
-            for c in tqdm(self.gcashData.commodities, disable=not(self.showProgress)):
-                output += "\n"
-                output += c.toLedgerFormat()
-            
-        # Output all accounts if requested
+            output += self.addCommodities()
         if not self.noAccounts:
-            output += "\n\n;; Account Definitions\n\n"
-        
-            if self.showProgress:
-                print("Converting account descriptions to ledger format:")
-            
-            for a in tqdm(self.gcashData.accountDb.values(), disable=not(self.showProgress)):
-                if a.used:
-                    output += "\n"
-                    output += a.toLedgerFormat()
-                
-        # And finally, Output all transactions
+            output += self.addAccounts()
         if not self.noTransactions:
-            output += "\n\n;;Transactions\n\n"
-        
-            if self.showProgress:
-                print("Converting transactions to ledger format:")        
-            
-            for t in tqdm(sorted(self.gcashData.transactions, key=lambda x: x.date), disable=not(self.showProgress)):
-                output += "\n"
-                output += t.toLedgerFormat(
-                    allCleared=self.allCleared,
-                    dateFmt=self.dateFormat,
-                    payeeMetaData=self.payeeMetaData,
-                )
+            output += self.addTransactions()
             
         return output
+
 
 
 def getCurrencySymbol(currencyCode): 
