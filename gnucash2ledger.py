@@ -514,20 +514,30 @@ def createParser():
         An ArgumentParser object
 
     """
+
+    # Create the parser
     parser = argparse.ArgumentParser(
         description="Converts a Gnucash XML file to a text file that can be processed by the Ledger and hledger command line programs.",
         add_help=True,
         epilog="NOTE: Gnucash files MUST be saved as uncompressed XML for the conversion to work!\nArguments may also be passed passing a text file with the '@' prefix to gnucash2ledger. This file must have a single argument per line.",
         fromfile_prefix_chars='@',
     )
+
+    # Tell the parser which version of the script this is
     parser.version = "0.1"
-    parser.add_argument("input", help="a Gnucash XML file to be read")
+
+    # Add an argument to accept an input file
+    parser.add_argument("INPUT_FILE", help="a Gnucash XML file to be read")
+
+    # Add an option to mark all transactions as 'cleared'
     parser.add_argument(
         "-c",
         "--cleared",
         help="Marks all transactions as cleared and place a cleared (*) mark before the transaction heading.",
         action="store_true",
     )
+
+    # Add an option to change the date format
     parser.add_argument(
         "-d",
         "--date-format",
@@ -537,18 +547,24 @@ def createParser():
         nargs=1,
         default=["%Y-%m-%d"],
     )
+
+    # Add an option to include a default Emacs header
     parser.add_argument(
         "-e",
         "--emacs-header",
         help="Adds a default header for ledger-mode in Emacs.",
         action="store_true",
     )
+
+    # Add an argument to overwrite existing Ledger files
     parser.add_argument(
         "-f",
         "--force-clobber",
         help="Force clobbering of and output file i the file already exists. If this option is provided, the output file will overwrite the existing file with the same name.",
         action="store_true",
     )
+    
+    # Add an argument to 
     parser.add_argument(
         "-na",
         "--no-account-defs",
@@ -556,13 +572,17 @@ def createParser():
         action="store_true",
         default=False,
     )
+    
+    # Add an option to not print any commodity descriptions
     parser.add_argument(
         "-nc",
         "--no-commodity-defs",
-        help="Prevent output of commodities to the output file.",
+        help="Prevent output of commodity descriptions to the output file.",
         action="store_true",
         default=False,
     )
+    
+    # Add an option to not print any transactions
     parser.add_argument(
         "-nt",
         "--no-transactions",
@@ -570,6 +590,8 @@ def createParser():
         action="store_true",
         default=False,
     )
+    
+    # Add an option to output results to a file instead of stdout
     parser.add_argument(
         "-o",
         "--output",
@@ -579,17 +601,24 @@ def createParser():
         nargs=1,
         metavar="FILENAME",
     )
+    
+    # Add an option to show progress bars to track the script progress
     parser.add_argument(
         "-p",
         "--show-progress",
         help="Show script status progress while reading and writing data.",
         action="store_true",
     )
+    
+    # Add an option to use description field from Gnucash as payee
+    # in the memo field in the case of transactions with multiple payees
     parser.add_argument(
         "--payee-metadata",
         help="Takes the information entered into the 'Description' field in Gnucash splits and adds them as a tagged '; Payee:' memo for the corresponding transaction split.",
         action="store_true",
     )
+    
+    # Add an option to use currency symbols instead of codes
     parser.add_argument(
         "-s",
         "--use-symbols",
@@ -597,11 +626,14 @@ def createParser():
         default=False,
         action="store_true",
     )
+    
+    # Add an option to display the program version number
     parser.add_argument(
         "-v",
         "--version",
         action="version"
     )
+    
     return parser
 
 
