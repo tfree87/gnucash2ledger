@@ -401,75 +401,83 @@ class GnucashData:
             self.transactions.append(Transaction(self.accountDb, xact, useSymbols=useSymbols))
 
 
-def convert2Ledger(args):
-    """Reads a Gnucash XML file and converts it to a ledger file.
+class LedgerConvertor():
+    def __init__(self, args):
+        self.allCleared = args.cleared
+        self.noCommodities = args.no_commodity_defs
+        self.noAccounts = args.no_account_defs
+        self.noTransactions = args.no_transactions
+        self.useSymbols = args.use_symbols
+        self.showProgress = args.show_progress
+        self.payeeMetaData = args.payee_metadata
+        self.emacsHeader = args.emacs_header
+        self.outFile = args.output[0] if args.output else None
+        self.dateFormat = args.date_format[0]
+        self.gcashData = GnucashData(args.INPUT_FILE, useSymbols=self.useSymbols, showProgress=self.showProgress)
     
-    Takes an uncompressed Gnucash XML file, parses it, and outputs a
-    string containing all transaction data that can be parsed by
-    ledger-cli.
+    def __call__(self):
+        """Reads a Gnucash XML file and converts it to a ledger file.
+        
+        Takes an uncompressed Gnucash XML file, parses it, and outputs a
+        string containing all transaction data that can be parsed by
+        ledger-cli.
     
-    Parameters
-    ----------
-    args : ArgumentParser
-        An ArgumentParser object containing command line arguments
-    
-    """      
-    allCleared = args.cleared if args.cleared else False
-    useSymbols = args.use_symbols if args.use_symbols else False
-    showProgress = args.show_progress if args.show_progress else False
-    payeeMetaData = args.payee_metadata if args.payee_metadata else False
-    
-    gcashData = GnucashData(args.input, useSymbols=useSymbols, showProgress=showProgress)
-    # Generate output
-
-    # Add a header for ledger-mode in Emacs if requested
-    if args.emacs_header:
-        filename = ""
-        if args.output is not None:
-            filename = args.output[0]
-        output = str(emacsHeader(filename=filename))
-    else:
+        Parameters
+        ----------
+        args : ArgumentParser
+            An ArgumentParser object containing command line arguments
+        
+        """      
+ 
+        # Generate output
         output = ""
 
-    # Add the commodities definitions unless not requested
-    if not args.no_commodity_defs:
-        output += ";; Commodity Definitions\n\n"
+        # Add a header for ledger-mode in Emacs if requested
+        if self.emacsHeader:
+            filename = ""
+            if self.outFile is not None:
+                filename = self.outFile
+            output += str(emacsHeader(filename=filename))
+
+        # Add the commodities definitions unless not requested
+        if not self.noCommodities:
+            output += ";; Commodity Definitions\n\n"
         
-        if showProgress:
-            print("Converting commodity descriptions to ledger format:")
+            if self.showProgress:
+                print("Converting commodity descriptions to ledger format:")
             
-        for c in tqdm(gcashData.commodities, disable=not(showProgress)):
-            output += "\n"
-            output += c.toLedgerFormat()
-            
-    # Output all accounts if requested
-    if not args.no_account_defs:
-        output += "\n\n;; Account Definitions\n\n"
-        
-        if showProgress:
-            print("Converting account descriptions to ledger format:")
-            
-        for a in tqdm(gcashData.accountDb.values(), disable=not(showProgress)):
-            if a.used:
+            for c in tqdm(self.gcashData.commodities, disable=not(self.showProgress)):
                 output += "\n"
-                output += a.toLedgerFormat()
-                
-    # And finally, Output all transactions
-    if not args.no_transactions:
-        output += "\n\n;;Transactions\n\n"
+                output += c.toLedgerFormat()
+            
+        # Output all accounts if requested
+        if not self.noAccounts:
+            output += "\n\n;; Account Definitions\n\n"
         
-        if showProgress:
-            print("Converting transactions to ledger format:")        
+            if self.showProgress:
+                print("Converting account descriptions to ledger format:")
             
-        for t in tqdm(sorted(gcashData.transactions, key=lambda x: x.date), disable=not(showProgress)):
-            output += "\n"
-            output += t.toLedgerFormat(
-                allCleared=allCleared,
-                dateFmt=args.date_format[0],
-                payeeMetaData=payeeMetaData,
-            )
+            for a in tqdm(self.gcashData.accountDb.values(), disable=not(self.showProgress)):
+                if a.used:
+                    output += "\n"
+                    output += a.toLedgerFormat()
+                
+        # And finally, Output all transactions
+        if not self.noTransactions:
+            output += "\n\n;;Transactions\n\n"
+        
+            if self.showProgress:
+                print("Converting transactions to ledger format:")        
             
-    return output
+            for t in tqdm(sorted(self.gcashData.transactions, key=lambda x: x.date), disable=not(self.showProgress)):
+                output += "\n"
+                output += t.toLedgerFormat(
+                    allCleared=self.allCleared,
+                    dateFmt=self.dateFormat,
+                    payeeMetaData=self.payeeMetaData,
+                )
+            
+        return output
 
 
 def getCurrencySymbol(currencyCode): 
@@ -535,6 +543,7 @@ def createParser():
         "--cleared",
         help="Marks all transactions as cleared and place a cleared (*) mark before the transaction heading.",
         action="store_true",
+        default=False,
     )
 
     # Add an option to change the date format
@@ -554,6 +563,7 @@ def createParser():
         "--emacs-header",
         help="Adds a default header for ledger-mode in Emacs.",
         action="store_true",
+        default=False
     )
 
     # Add an argument to overwrite existing Ledger files
@@ -562,6 +572,7 @@ def createParser():
         "--force-clobber",
         help="Force clobbering of and output file i the file already exists. If this option is provided, the output file will overwrite the existing file with the same name.",
         action="store_true",
+        default=False,
     )
     
     # Add an argument to 
@@ -608,6 +619,7 @@ def createParser():
         "--show-progress",
         help="Show script status progress while reading and writing data.",
         action="store_true",
+        default=False
     )
     
     # Add an option to use description field from Gnucash as payee
@@ -616,6 +628,7 @@ def createParser():
         "--payee-metadata",
         help="Takes the information entered into the 'Description' field in Gnucash splits and adds them as a tagged '; Payee:' memo for the corresponding transaction split.",
         action="store_true",
+        default=False,
     )
     
     # Add an option to use currency symbols instead of codes
@@ -645,6 +658,7 @@ def main():
     # Parse the command line arguments and store as args
     args = parser.parse_args()
 
+    convertor = LedgerConvertor(args)
     # If output file is given, write data to a text file.
     if args.output:
         
@@ -656,11 +670,11 @@ def main():
                 "file".format(outfile=args.output[0]))
         else:
             with open(args.output[0], "w") as outFile:
-                outFile.write(convert2Ledger(args))
+                outFile.write(convertor())
                 
     # If no output file is given print data to stdout
     else:
-        print(convert2Ledger(args))
+        print(convertor())
 
 
 if __name__ == "__main__":
