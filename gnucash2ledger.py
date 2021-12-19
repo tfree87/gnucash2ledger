@@ -603,8 +603,7 @@ def createParser():
     return parser
 
 
-if __name__ == "__main__":
-    
+def main():
     # Create the ArgumentParser object to collect command line arguments
     parser = createParser()
     
@@ -627,3 +626,6 @@ if __name__ == "__main__":
     # If no output file is given print data to stdout
     else:
         print(convert2Ledger(args))
+
+if __name__ == "__main__":
+    main()
