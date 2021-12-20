@@ -403,23 +403,19 @@ class GnucashData:
 
 class LedgerConvertor():
     def __init__(self, args):
-        self.allCleared = args.cleared
+        self.showProgress = args.show_progress
         self.noCommodities = args.no_commodity_defs
         self.noAccounts = args.no_account_defs
         self.noTransactions = args.no_transactions
-        self.useSymbols = args.use_symbols
-        self.showProgress = args.show_progress
-        self.payeeMetaData = args.payee_metadata
         self.emacsHeader = args.emacs_header
         self.outFile = args.output[0] if args.output else None
-        self.dateFormat = args.date_format[0]
         self.gcashData = GnucashData(
             args.INPUT_FILE,
-            useSymbols=self.useSymbols,
+            useSymbols=args.use_symbols,
             showProgress=self.showProgress,
-            allCleared=self.allCleared,
-            dateFormat=self.dateFormat,
-            payeeMetaData=self.payeeMetaData,
+            allCleared=args.cleared,
+            dateFormat=args.date_format[0],
+            payeeMetaData=args.payee_metadata,
         )
 
     def addCommodities(self):
@@ -479,18 +475,18 @@ class LedgerConvertor():
             An ArgumentParser object containing command line arguments
         
         """      
-        output = ""
+        results = ""
         if self.emacsHeader:
             filename = self.outFile
-            output += str(emacsHeader(filename=filename))
+            results += str(emacsHeader(filename=filename))
         if not self.noCommodities:
-            output += self.addCommodities()
+            results += self.addCommodities()
         if not self.noAccounts:
-            output += self.addAccounts()
+            results += self.addAccounts()
         if not self.noTransactions:
-            output += self.addTransactions()
+            results += self.addTransactions()
             
-        return output
+        return results
 
 
 def getCurrencySymbol(currencyCode): 
