@@ -106,6 +106,7 @@ class Commodity:
 
 class Account:
     def __init__(self, accountDb, e, useSymbols=False):
+        """Constructs an Account object"""
         self.accountDb = accountDb
         self.name = e.find("act:name", nss).text
         self.id = e.find("act:id", nss).text
@@ -137,6 +138,7 @@ class Account:
             "account {fullName}\n"
             "    note {description} (type: {type})\n"
         )
+        
         return outPattern.format(
             fullName=self.fullName(), **self.__dict__
         )
@@ -145,8 +147,7 @@ class Account:
 class Split:
     
     def __init__(self, accountDb, e, commodity, allCleared=False, useSymbols=False, payeeMetaData=False):
-        """Constructs a Split object containing transaction split data
-
+        """
         Constructs a transaction split which contains data on the
         accounts involved in a transaction, the currencies/commodities
         used, the converstion factor to the account commodity, and
@@ -168,6 +169,9 @@ class Split:
         payeeMetaData : boool
             A boolean determining whether split descriptors should
             be used a a "payee" metadata tag for each split
+        commodity : Commodity
+            A commodity object representing the commodity or
+            currency associated with the current split.
 
         """
         self.accountDb = accountDb
@@ -200,7 +204,7 @@ class Split:
         return self.accountDb[self.accountId]
 
     def __str__(self):
-        """Outputs a string for each transaction split formatted for ledger
+        """ Returns a string for each transaction split formatted for ledger
         
         Examples:
         ---------
@@ -313,7 +317,8 @@ class Transaction:
         Takes a transaction from a GnucashData object and converts it
         to a multi-line string in a format that can be processed by
         ledger-cli.
-
+        
+        
         Examples
         --------
         >>> __str__()
@@ -356,11 +361,16 @@ class emacsHeader:
         self.filename = filename
         
     def __str__(self):
-        """Returns a ledger-cli header string.
+        """Returns a ledger-cli header string for use in Emacs.
         
         Returns a ledger-cli header string when called to be used for
         Emacs buffers.
         
+        Returns
+        -------
+        Returns a multi-line string containing an Emacs header to be
+        used for a ledger file in Emacs ledger-mode
+                
         Examples
         --------
         >>> __str__()
@@ -368,9 +378,9 @@ class emacsHeader:
         ;; Filename: example_filename
         ;; Description: Gnucash transaction journal converted with gcash2ledger.py
         ;; Time-stamp: <1999-09-09>
-
+        
         """
-        header = (
+        results = (
         ";; -*- Mode: ledger -*- \n"
         ";; \n"
         ";; Filename: {filename} \n"
@@ -378,7 +388,7 @@ class emacsHeader:
         ";; Time-stamp: <{date}> \n\n\n"
         )
         
-        return header.format(filename=self.filename, date=self.today)
+        return results.format(filename=self.filename, date=self.today)
 
 
 class GnucashData:
@@ -499,6 +509,11 @@ class LedgerConvertor():
         ----------
         args : ArgumentParser
             An ArgumentParser object containing command line arguments
+        
+        Returns
+        -------
+        A multi-line string that contains the data for a full Ledger
+        transaction journal file.
         
         """      
         results = ""

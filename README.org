@@ -27,7 +27,7 @@ gnucash2ledger has the following features:
 ** Usage
 
 #+begin_example
-gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] input
+gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] INPUT_FILE
 #+end_example
 
 *** Command Line Arguments
