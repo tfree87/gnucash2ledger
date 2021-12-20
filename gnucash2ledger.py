@@ -166,7 +166,7 @@ class Split:
         useSymbols : bool
             A boolean determining if the currency is represented by
             a three-letter code (e.g. USD) or a symbol (e.g. $)
-        payeeMetaData : boool
+        payeeMetaData : bool
             A boolean determining whether split descriptors should
             be used a a "payee" metadata tag for each split
         commodity : Commodity
@@ -301,7 +301,6 @@ class Transaction:
             self.commodity = getCurrencySymbol(e.find("trn:currency/cmdty:id", nss).text)
         else:
             self.commodity = e.find("trn:currency/cmdty:id", nss).text
-
         self.description = e.find("trn:description", nss).text
         self.splits = [Split(accountDb,
                              s,
@@ -432,6 +431,7 @@ class GnucashData:
         for xact in tqdm(book.findall("gnc:transaction", nss), disable=not(showProgress)):
             self.transactions.append(Transaction(self.accountDb,
                                                  xact,
+                                                 payeeMetaData=payeeMetaData,
                                                  useSymbols=useSymbols,
                                                  allCleared=allCleared,
                                                  dateFormat=dateFormat))
@@ -675,6 +675,7 @@ def createParser():
     # Add an option to use description field from Gnucash as payee
     # in the memo field in the case of transactions with multiple payees
     parser.add_argument(
+        "-pm",
         "--payee-metadata",
         help="Takes the information entered into the 'Description' field in Gnucash splits and adds them as a tagged '; Payee:' memo for the corresponding transaction split.",
         action="store_true",
@@ -708,7 +709,6 @@ def main():
     # Parse the command line arguments and store as args
     args = parser.parse_args()
 
-    convertor = LedgerConvertor(args)
     # If output file is given, write data to a text file.
     if args.output:
         
@@ -719,11 +719,13 @@ def main():
                 "script again with -f to force clobbering of existing "
                 "file".format(outfile=args.output[0]))
         else:
+            convertor = LedgerConvertor(args)
             with open(args.output[0], "w") as outFile:
                 outFile.write(convertor())
                 
     # If no output file is given print data to stdout
     else:
+        convertor = LedgerConvertor(args)
         print(convertor())
 
 
