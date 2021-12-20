@@ -16,22 +16,22 @@ gnucash2ledger is a Python script based on the Github Gist by nonducor ([[https:
 
 /Note: gnucash2ledger will only work if the Gnucash data is saved in an uncompressed XML file. If you prefer to save your Gnucash in SQL database formats, checkout the [[https://github.com/sdementen/piecash][piecash]] project./
 
-** Features
+* Features
 gnucash2ledger has the following features:
 - Allows for export to a text file or prints results to standard output
 - Exports commodity definitions, account definitions, and transactions with splits
 - Supports multiple commodities/currencies
 - Provides and option to insert a default header for Emacs ~ledger-mode~ (Github: [[https://github.com/ledger/ledger-mode][ledger/ledger-mode]])
 - Currency codes can be replaced by currency symbols using Python CurrencySymbols library
-- Provides an option to display progress bars (useful for converting very long Gnucash files)
-** Usage
+- Provides an option to display progress bars (useful for converting very long Gnucash files and you want to verify something is running)
+* Usage
 
 #+begin_example
-gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] input
+gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] INPUT_FILE
 #+end_example
 
-*** Command Line Arguments
-Output from =gnucash2ledger -h=
+** Command Line Arguments
+Output from =gnucash2ledger -h=:
 
 #+begin_example
 positional arguments:
@@ -59,7 +59,11 @@ optional arguments:
   -s, --use-symbols     Replaces currency codes with currency symbols.
   -v, --version         show program's version number and exit
   #+end_example
-** Requirements
+* Requirements
 gnucash2ledger requires that the following Python packages are installed:
 - currency-symbols
 - tqdm
+* Future
+- [ ] Include options to add/remove headers for different sections
+- [ ] Increase parsing speed of Gnucash XML file
+- [ ] Include options for splitting large Gnucash files into multiple ledger files

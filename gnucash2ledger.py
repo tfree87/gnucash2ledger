@@ -77,10 +77,10 @@ def orElse(var, default=""):
 class Commodity:
     def __init__(self, e, useSymbols=False):
         """Constructs a commodity object.
-
+        
         Constructs a commodity object containing information about a
         currency, stock, or other commodity.
-
+        
         Parameters
         ----------
         e : xml.etree.ElementTree
@@ -88,7 +88,7 @@ class Commodity:
         useSymbols : bool
             A boolean determining whether currency symbols (True) or
             codes (False) should be used
-
+        
         """
         self.space = orElse(e.find("cmdty:space", nss)).text
         if useSymbols:
@@ -96,16 +96,17 @@ class Commodity:
         else:
             self.id = orElse(e.find("cmdty:id", nss)).text
         self.name = orElse(e.find("cmdty:name", nss)).text
-
-    def toLedgerFormat(self):
+        
+    def __str__(self):
         """Format the commodity in a way good to be interpreted by ledger."""
         outPattern = "commodity {id}\n" "    note {name} ({space}:{id})\n"
-
+        
         return outPattern.format(**self.__dict__)
 
 
 class Account:
     def __init__(self, accountDb, e, useSymbols=False):
+        """Constructs an Account object"""
         self.accountDb = accountDb
         self.name = e.find("act:name", nss).text
         self.id = e.find("act:id", nss).text
@@ -120,7 +121,7 @@ class Account:
             self.commodity = orElse(e.find("act:commodity/cmdty:id", nss), None).text
 
     def getParent(self):
-        """Returns the parent account of the current account.
+        """ Returns the parent account of the current account.
         """
         return self.accountDb[self.parent]
 
@@ -131,11 +132,13 @@ class Account:
             prefix = ""  # ROOT will not be displayed
         return prefix + self.name
 
-    def toLedgerFormat(self):
+    def __str__(self):
+        """ Returns a string showing a description of each account"""
         outPattern = (
             "account {fullName}\n"
             "    note {description} (type: {type})\n"
         )
+        
         return outPattern.format(
             fullName=self.fullName(), **self.__dict__
         )
@@ -143,9 +146,8 @@ class Account:
 
 class Split:
     
-    def __init__(self, accountDb, e):
-        """Constructs a Split object containing transaction split data
-
+    def __init__(self, accountDb, e, commodity, allCleared=False, useSymbols=False, payeeMetaData=False):
+        """
         Constructs a transaction split which contains data on the
         accounts involved in a transaction, the currencies/commodities
         used, the converstion factor to the account commodity, and
@@ -158,13 +160,28 @@ class Split:
             object
         e : xml.etree.elementTree
             An XML elementTree object containing information parsed
-            from a Gnucash XML file.
+            from a Gnucash XML file
+        allCleared : bool
+            A boolean determining whether all splits are reconciled
+        useSymbols : bool
+            A boolean determining if the currency is represented by
+            a three-letter code (e.g. USD) or a symbol (e.g. $)
+        payeeMetaData : bool
+            A boolean determining whether split descriptors should
+            be used a a "payee" metadata tag for each split
+        commodity : Commodity
+            A commodity object representing the commodity or
+            currency associated with the current split.
 
         """
         self.accountDb = accountDb
         self.reconciled = e.find("split:reconciled-state", nss).text == "y"
         self.accountId = e.find("split:account", nss).text
         self.memo = e.find('split:memo', nss)
+        self.allCleared = allCleared
+        self.useSymbols = useSymbols
+        self.payeeMetaData = payeeMetaData
+        self.commodity = commodity
         accountDb[self.accountId].used = True
 
         # Some special treatment for value and quantity
@@ -186,19 +203,27 @@ class Split:
         """
         return self.accountDb[self.accountId]
 
-    def toLedgerFormat(self, commodity, allCleared=False, useSymbols=False, payeeMetaData=False):
-        """Outputs a string for each transaction split formatted for ledger"""
+    def __str__(self):
+        """ Returns a string for each transaction split formatted for ledger
+        
+        Examples:
+        ---------
+        >>> __str__()
+        * Assets:Checking    $-100.00
+        
+        """
         
         outPattern = "    {flag}{accountName}{spaces}{value}{memo}"
+        commodity = self.commodity
 
         if commodity == self.getAccount().commodity:
-            if useSymbols:
+            if self.useSymbols:
                 value = "{commodity}{value:,.2f}".format(commodity=commodity, value=float(self.value))
             else:
                 value = "{value:,.2f} {commodity}".format(commodity=commodity,
                                                  value=float(self.value))
         else:
-            if useSymbols:
+            if self.useSymbols:
                 conversion = "{destCmdty}{destValue} @@ {commodity}{value}"
             else:
                 conversion = "{destValue} {destCmdty} @@ {value} {commodity}"
@@ -212,7 +237,7 @@ class Split:
             
         # Set the value for the flag, account name, memo, and number of spaces
         # between the account name and value
-        if (self.reconciled and not(allCleared)):
+        if (self.reconciled and not(self.allCleared)):
             flag = "* "
         else:
             flag = ""
@@ -220,7 +245,7 @@ class Split:
         numSpaces = 76 - len(flag) - len(accountName) - len(value)
         spaces = "".join([" " + " " * numSpaces])
         memo = ""
-        if self.memo is not None and payeeMetaData:
+        if self.memo is not None and self.payeeMetaData:
             memo = "  ; Payee: " + self.memo.text
             
         return outPattern.format(
@@ -231,7 +256,7 @@ class Split:
             memo=memo,
         )
 
-    def convertValue(self, rawValue):        
+    def convertValue(self, rawValue):
         (intValue, decPoint) = rawValue.split("/")
         
         n = len(decPoint) - 1
@@ -242,12 +267,13 @@ class Split:
             intValue = "0" * (n + 1 - len(intValue)) + intValue
         if signFlag:
             intValue = "-" + intValue
+            
         return intValue[:-n] + "." + intValue[-n:]
 
 
 class Transaction:
     
-    def __init__(self, accountDb, e, useSymbols=False):
+    def __init__(self, accountDb, e, allCleared=False, useSymbols=False, dateFormat="%Y-%m-%d", payeeMetaData=False):
         """Constructs a Transaction object
 
         An object containing data about a Gnucash transaction that can
@@ -263,60 +289,52 @@ class Transaction:
         useSymbols : bool
             A boolean determining whether to use currency symbols
             (True) or currency codes (False)
+        dateFormat : str
+            A string representing the format in which dates are printed
         
         """
         self.accountDb = accountDb
+        self.cleared = allCleared
+        self.dateFormat = dateFormat
         self.date = dateutil.parser.parse(e.find("trn:date-posted/ts:date", nss).text)
-        self.useSymbols = useSymbols
-        if self.useSymbols:
+        if useSymbols:
             self.commodity = getCurrencySymbol(e.find("trn:currency/cmdty:id", nss).text)
         else:
             self.commodity = e.find("trn:currency/cmdty:id", nss).text
         self.description = e.find("trn:description", nss).text
-        self.splits = [
-            Split(accountDb, s) for s in e.findall("trn:splits/trn:split", nss)
-        ]
+        self.splits = [Split(accountDb,
+                             s,
+                             self.commodity,
+                             allCleared=self.cleared,
+                             useSymbols=useSymbols,
+                             payeeMetaData=payeeMetaData)
+                       for s in e.findall("trn:splits/trn:split", nss)]
         
-    def toLedgerFormat(self, allCleared=False, dateFmt="%Y-%m-%d", payeeMetaData=False):
+    def __str__(self):
         """Convert a Gnucash transaction to a multi-line string formatted for ledger
 
         Takes a transaction from a GnucashData object and converts it
         to a multi-line string in a format that can be processed by
         ledger-cli.
-
-        Parameters
-        ----------
-        allCleared : bool
-            A boolean determining if all transactions should be marked
-            as cleared (True) or not (False)
-        dateFmt : str
-            A string representing the transaction date format.
-        payeeMetaData : bool
-            A boolean determining whether metadata should be included
-            in the output transaction as a '; Payee:' memo.
+        
         
         Examples
         --------
-        >>> toLedgerFormat()
-        1999-01-01 Example Description
+        >>> __str__()
+        1999-01-01 * Example Description
             Expenses:Example          $1.00
             Assets:Checking          -$1.00
         
         """
-        if allCleared:
+        if self.cleared:
             outPattern = "{date} * {description}\n" "{splits}\n"
-            splits = "\n".join(s.toLedgerFormat(self.commodity, allCleared=True, useSymbols=self.useSymbols) for s in self.splits)
+            splits = "\n".join(str(s) for s in self.splits)
         else:
             outPattern = "{date} {description}\n" "{splits}\n"
-            splits = "\n".join(
-                s.toLedgerFormat(self.commodity,
-                                 allCleared=False,
-                                 useSymbols=self.useSymbols,
-                                 payeeMetaData=payeeMetaData,
-                ) for s in self.splits)
+            splits = "\n".join(str(s)for s in self.splits)
 
         return outPattern.format(
-            date=self.date.strftime(dateFmt),
+            date=self.date.strftime(self.dateFormat),
             description=self.description,
             splits=splits,
         )
@@ -342,13 +360,26 @@ class emacsHeader:
         self.filename = filename
         
     def __str__(self):
-        """Returns a ledger-cli header string.
+        """Returns a ledger-cli header string for use in Emacs.
         
         Returns a ledger-cli header string when called to be used for
         Emacs buffers.
         
+        Returns
+        -------
+        Returns a multi-line string containing an Emacs header to be
+        used for a ledger file in Emacs ledger-mode
+                
+        Examples
+        --------
+        >>> __str__()
+        ;; -*- Mode: ledger -*-
+        ;; Filename: example_filename
+        ;; Description: Gnucash transaction journal converted with gcash2ledger.py
+        ;; Time-stamp: <1999-09-09>
+        
         """
-        header = (
+        results = (
         ";; -*- Mode: ledger -*- \n"
         ";; \n"
         ";; Filename: {filename} \n"
@@ -356,12 +387,12 @@ class emacsHeader:
         ";; Time-stamp: <{date}> \n\n\n"
         )
         
-        return header.format(filename=self.filename, date=self.today)
+        return results.format(filename=self.filename, date=self.today)
 
 
 class GnucashData:
     
-    def __init__(self, inputFile, useSymbols=False, showProgress=False):
+    def __init__(self, inputFile, useSymbols=False, showProgress=False, allCleared=False, payeeMetaData=False, dateFormat="%Y-%m-%d"):
         """Constructs a GnucashData object
 
         Parameters
@@ -398,82 +429,109 @@ class GnucashData:
         if showProgress:
             print("Gathering transactions:")
         for xact in tqdm(book.findall("gnc:transaction", nss), disable=not(showProgress)):
-            self.transactions.append(Transaction(self.accountDb, xact, useSymbols=useSymbols))
+            self.transactions.append(Transaction(self.accountDb,
+                                                 xact,
+                                                 payeeMetaData=payeeMetaData,
+                                                 useSymbols=useSymbols,
+                                                 allCleared=allCleared,
+                                                 dateFormat=dateFormat))
 
 
-def convert2Ledger(args):
-    """Reads a Gnucash XML file and converts it to a ledger file.
-    
-    Takes an uncompressed Gnucash XML file, parses it, and outputs a
-    string containing all transaction data that can be parsed by
-    ledger-cli.
-    
-    Parameters
-    ----------
-    args : ArgumentParser
-        An ArgumentParser object containing command line arguments
-    
-    """      
-    allCleared = args.cleared if args.cleared else False
-    useSymbols = args.use_symbols if args.use_symbols else False
-    showProgress = args.show_progress if args.show_progress else False
-    payeeMetaData = args.payee_metadata if args.payee_metadata else False
-    
-    gcashData = GnucashData(args.input, useSymbols=useSymbols, showProgress=showProgress)
-    # Generate output
+class LedgerConvertor():
+    def __init__(self, args):
+        self.showProgress = args.show_progress
+        self.noCommodities = args.no_commodity_defs
+        self.noAccounts = args.no_account_defs
+        self.noTransactions = args.no_transactions
+        self.emacsHeader = args.emacs_header
+        self.outFile = args.output[0] if args.output else None
+        self.gcashData = GnucashData(
+            args.INPUT_FILE,
+            useSymbols=args.use_symbols,
+            showProgress=self.showProgress,
+            allCleared=args.cleared,
+            dateFormat=args.date_format[0],
+            payeeMetaData=args.payee_metadata,
+        )
 
-    # Add a header for ledger-mode in Emacs if requested
-    if args.emacs_header:
-        filename = ""
-        if args.output is not None:
-            filename = args.output[0]
-        output = str(emacsHeader(filename=filename))
-    else:
-        output = ""
-
-    # Add the commodities definitions unless not requested
-    if not args.no_commodity_defs:
-        output += ";; Commodity Definitions\n\n"
+    def addCommodities(self):
+        """ Returns a multi-line string of commodities in Ledger format"""
+        results = ";; Commodity Definitions\n\n"
         
-        if showProgress:
+        if self.showProgress:
             print("Converting commodity descriptions to ledger format:")
             
-        for c in tqdm(gcashData.commodities, disable=not(showProgress)):
-            output += "\n"
-            output += c.toLedgerFormat()
-            
-    # Output all accounts if requested
-    if not args.no_account_defs:
-        output += "\n\n;; Account Definitions\n\n"
+        for c in tqdm(self.gcashData.commodities, disable=not(self.showProgress)):
+            results += "\n"
+            results += str(c)
+
+        return results
+
+    def addAccounts(self):
+        """ Returns a multi-line string of accounts in Ledger format"""
+        results = "\n\n;; Account Definitions\n\n"
         
-        if showProgress:
+        if self.showProgress:
             print("Converting account descriptions to ledger format:")
             
-        for a in tqdm(gcashData.accountDb.values(), disable=not(showProgress)):
+        for a in tqdm(self.gcashData.accountDb.values(),
+                      disable=not(self.showProgress)):
             if a.used:
-                output += "\n"
-                output += a.toLedgerFormat()
+                results += "\n"
+                results += str(a)
                 
-    # And finally, Output all transactions
-    if not args.no_transactions:
-        output += "\n\n;;Transactions\n\n"
+        return results
+
+    def addTransactions(self):
+        """ Returns and multi-line string of transactions in Ledger format"""
+        results = "\n\n;;Transactions\n\n"
         
-        if showProgress:
+        if self.showProgress:
             print("Converting transactions to ledger format:")        
             
-        for t in tqdm(sorted(gcashData.transactions, key=lambda x: x.date), disable=not(showProgress)):
-            output += "\n"
-            output += t.toLedgerFormat(
-                allCleared=allCleared,
-                dateFmt=args.date_format[0],
-                payeeMetaData=payeeMetaData,
-            )
+        for t in tqdm(
+                sorted(self.gcashData.transactions,
+                       key=lambda x: x.date),
+                disable=not(self.showProgress)):
+            results += "\n"
+            results += str(t)
             
-    return output
+        return results
+
+    def __call__(self):
+        """Reads a Gnucash XML file and converts it to a ledger file.
+        
+        Takes an uncompressed Gnucash XML file, parses it, and outputs a
+        string containing all transaction data that can be parsed by
+        ledger-cli.
+    
+        Parameters
+        ----------
+        args : ArgumentParser
+            An ArgumentParser object containing command line arguments
+        
+        Returns
+        -------
+        A multi-line string that contains the data for a full Ledger
+        transaction journal file.
+        
+        """      
+        results = ""
+        if self.emacsHeader:
+            filename = self.outFile
+            results += str(emacsHeader(filename=filename))
+        if not self.noCommodities:
+            results += self.addCommodities()
+        if not self.noAccounts:
+            results += self.addAccounts()
+        if not self.noTransactions:
+            results += self.addTransactions()
+            
+        return results
 
 
 def getCurrencySymbol(currencyCode): 
-    """Gets the currency symbol based on the three-letter currency code if available
+    """Returns the currency symbol based on the three-letter currency code if available
 
     Returns a string representation of a currency based on the
     three-letter code for that currency. For example, the string 'USD'
@@ -535,6 +593,7 @@ def createParser():
         "--cleared",
         help="Marks all transactions as cleared and place a cleared (*) mark before the transaction heading.",
         action="store_true",
+        default=False,
     )
 
     # Add an option to change the date format
@@ -554,6 +613,7 @@ def createParser():
         "--emacs-header",
         help="Adds a default header for ledger-mode in Emacs.",
         action="store_true",
+        default=False
     )
 
     # Add an argument to overwrite existing Ledger files
@@ -562,6 +622,7 @@ def createParser():
         "--force-clobber",
         help="Force clobbering of and output file i the file already exists. If this option is provided, the output file will overwrite the existing file with the same name.",
         action="store_true",
+        default=False,
     )
     
     # Add an argument to 
@@ -608,14 +669,17 @@ def createParser():
         "--show-progress",
         help="Show script status progress while reading and writing data.",
         action="store_true",
+        default=False
     )
     
     # Add an option to use description field from Gnucash as payee
     # in the memo field in the case of transactions with multiple payees
     parser.add_argument(
+        "-pm",
         "--payee-metadata",
         help="Takes the information entered into the 'Description' field in Gnucash splits and adds them as a tagged '; Payee:' memo for the corresponding transaction split.",
         action="store_true",
+        default=False,
     )
     
     # Add an option to use currency symbols instead of codes
@@ -655,12 +719,14 @@ def main():
                 "script again with -f to force clobbering of existing "
                 "file".format(outfile=args.output[0]))
         else:
+            convertor = LedgerConvertor(args)
             with open(args.output[0], "w") as outFile:
-                outFile.write(convert2Ledger(args))
+                outFile.write(convertor())
                 
     # If no output file is given print data to stdout
     else:
-        print(convert2Ledger(args))
+        convertor = LedgerConvertor(args)
+        print(convertor())
 
 
 if __name__ == "__main__":
