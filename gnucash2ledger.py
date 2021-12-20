@@ -120,7 +120,7 @@ class Account:
             self.commodity = orElse(e.find("act:commodity/cmdty:id", nss), None).text
 
     def getParent(self):
-        """Returns the parent account of the current account.
+        """ Returns the parent account of the current account.
         """
         return self.accountDb[self.parent]
 
@@ -132,6 +132,7 @@ class Account:
         return prefix + self.name
 
     def __str__(self):
+        """ Returns a string showing a description of each account"""
         outPattern = (
             "account {fullName}\n"
             "    note {description} (type: {type})\n"
@@ -158,7 +159,15 @@ class Split:
             object
         e : xml.etree.elementTree
             An XML elementTree object containing information parsed
-            from a Gnucash XML file.
+            from a Gnucash XML file
+        allCleared : bool
+            A boolean determining whether all splits are reconciled
+        useSymbols : bool
+            A boolean determining if the currency is represented by
+            a three-letter code (e.g. USD) or a symbol (e.g. $)
+        payeeMetaData : boool
+            A boolean determining whether split descriptors should
+            be used a a "payee" metadata tag for each split
 
         """
         self.accountDb = accountDb
@@ -191,7 +200,14 @@ class Split:
         return self.accountDb[self.accountId]
 
     def __str__(self):
-        """Outputs a string for each transaction split formatted for ledger"""
+        """Outputs a string for each transaction split formatted for ledger
+        
+        Examples:
+        ---------
+        >>> __str__()
+        * Assets:Checking    $-100.00
+        
+        """
         
         outPattern = "    {flag}{accountName}{spaces}{value}{memo}"
         commodity = self.commodity
@@ -236,7 +252,7 @@ class Split:
             memo=memo,
         )
 
-    def convertValue(self, rawValue):        
+    def convertValue(self, rawValue):
         (intValue, decPoint) = rawValue.split("/")
         
         n = len(decPoint) - 1
@@ -269,6 +285,8 @@ class Transaction:
         useSymbols : bool
             A boolean determining whether to use currency symbols
             (True) or currency codes (False)
+        dateFormat : str
+            A string representing the format in which dates are printed
         
         """
         self.accountDb = accountDb
@@ -343,6 +361,14 @@ class emacsHeader:
         Returns a ledger-cli header string when called to be used for
         Emacs buffers.
         
+        Examples
+        --------
+        >>> __str__()
+        ;; -*- Mode: ledger -*-
+        ;; Filename: example_filename
+        ;; Description: Gnucash transaction journal converted with gcash2ledger.py
+        ;; Time-stamp: <1999-09-09>
+
         """
         header = (
         ";; -*- Mode: ledger -*- \n"
