@@ -59,17 +59,17 @@ nss = {
 }
 
 
-class DefaultAttributeProducer:
-    def __init__(self, defaultValue):
-        self.__defaultValue = defaultValue
+class default_attribute_producer:
+    def __init__(self, default_value):
+        self.__default_value = default_value
         
     def __getattr__(self, value):
-         return self.__defaultValue
+         return self.__default_value
 
 
-def orElse(var, default=""):
+def or_else(var, default=""):
     if var is None:
-        return DefaultAttributeProducer(default)
+        return default_attribute_producer(default)
     else:
         return var
 
@@ -90,12 +90,12 @@ class Commodity:
             codes (False) should be used
         
         """
-        self.space = orElse(e.find("cmdty:space", nss)).text
+        self.space = or_else(e.find("cmdty:space", nss)).text
         if useSymbols:
-            self.id = getCurrencySymbol(orElse(e.find("cmdty:id", nss)).text)
+            self.id = get_currency_symbol(or_else(e.find("cmdty:id", nss)).text)
         else:
-            self.id = orElse(e.find("cmdty:id", nss)).text
-        self.name = orElse(e.find("cmdty:name", nss)).text
+            self.id = or_else(e.find("cmdty:id", nss)).text
+        self.name = or_else(e.find("cmdty:name", nss)).text
         
     def __str__(self):
         """Format the commodity in a way good to be interpreted by ledger."""
@@ -111,23 +111,23 @@ class Account:
         self.name = e.find("act:name", nss).text
         self.id = e.find("act:id", nss).text
         self.accountDb[self.id] = self
-        self.description = orElse(e.find("act:description", nss)).text
+        self.description = or_else(e.find("act:description", nss)).text
         self.type = e.find("act:type", nss).text
-        self.parent = orElse(e.find("act:parent", nss), None).text
+        self.parent = or_else(e.find("act:parent", nss), None).text
         self.used = False  # Mark accounts that were in a transaction
         if useSymbols:
-            self.commodity = getCurrencySymbol(orElse(e.find("act:commodity/cmdty:id", nss), None).text)
+            self.commodity = get_currency_symbol(or_else(e.find("act:commodity/cmdty:id", nss), None).text)
         else:
-            self.commodity = orElse(e.find("act:commodity/cmdty:id", nss), None).text
+            self.commodity = or_else(e.find("act:commodity/cmdty:id", nss), None).text
 
-    def getParent(self):
+    def get_parent(self):
         """ Returns the parent account of the current account.
         """
         return self.accountDb[self.parent]
 
-    def fullName(self):
-        if self.parent is not None and self.getParent().type != "ROOT":
-            prefix = self.getParent().fullName() + ":"
+    def full_name(self):
+        if self.parent is not None and self.get_parent().type != "ROOT":
+            prefix = self.get_parent().full_name() + ":"
         else:
             prefix = ""  # ROOT will not be displayed
         return prefix + self.name
@@ -140,7 +140,7 @@ class Account:
         )
         
         return outPattern.format(
-            fullName=self.fullName(), **self.__dict__
+            fullName=self.full_name(), **self.__dict__
         )
 
 
@@ -186,13 +186,13 @@ class Split:
 
         # Some special treatment for value and quantity
         rawValue = e.find("split:value", nss).text
-        self.value = self.convertValue(rawValue)
+        self.value = self.convert_value(rawValue)
 
         # Quantity is the amount on the commodity of the account
         rawQuantity = e.find("split:quantity", nss).text
-        self.quantity = self.convertValue(rawQuantity)
+        self.quantity = self.convert_value(rawQuantity)
 
-    def getAccount(self):
+    def get_account(self):
         """Returns the account for the current transaction split.
         
         Examples
@@ -216,7 +216,7 @@ class Split:
         outPattern = "    {flag}{accountName}{spaces}{value}{memo}"
         commodity = self.commodity
 
-        if commodity == self.getAccount().commodity:
+        if commodity == self.get_account().commodity:
             if self.useSymbols:
                 value = "{commodity}{value:,.2f}".format(commodity=commodity, value=float(self.value))
             else:
@@ -241,7 +241,7 @@ class Split:
             flag = "* "
         else:
             flag = ""
-        accountName = self.getAccount().fullName()
+        accountName = self.get_account().full_name()
         numSpaces = 76 - len(flag) - len(accountName) - len(value)
         spaces = "".join([" " + " " * numSpaces])
         memo = ""
@@ -256,7 +256,7 @@ class Split:
             memo=memo,
         )
 
-    def convertValue(self, rawValue):
+    def convert_value(self, rawValue):
         (intValue, decPoint) = rawValue.split("/")
         
         n = len(decPoint) - 1
@@ -298,7 +298,7 @@ class Transaction:
         self.dateFormat = dateFormat
         self.date = dateutil.parser.parse(e.find("trn:date-posted/ts:date", nss).text)
         if useSymbols:
-            self.commodity = getCurrencySymbol(e.find("trn:currency/cmdty:id", nss).text)
+            self.commodity = get_currency_symbol(e.find("trn:currency/cmdty:id", nss).text)
         else:
             self.commodity = e.find("trn:currency/cmdty:id", nss).text
         self.description = e.find("trn:description", nss).text
@@ -454,7 +454,7 @@ class LedgerConvertor():
             payeeMetaData=args.payee_metadata,
         )
 
-    def addCommodities(self):
+    def add_commodities(self):
         """ Returns a multi-line string of commodities in Ledger format"""
         results = ";; Commodity Definitions\n\n"
         
@@ -467,7 +467,7 @@ class LedgerConvertor():
 
         return results
 
-    def addAccounts(self):
+    def add_accounts(self):
         """ Returns a multi-line string of accounts in Ledger format"""
         results = "\n\n;; Account Definitions\n\n"
         
@@ -482,7 +482,7 @@ class LedgerConvertor():
                 
         return results
 
-    def addTransactions(self):
+    def add_transactions(self):
         """ Returns and multi-line string of transactions in Ledger format"""
         results = "\n\n;;Transactions\n\n"
         
@@ -521,16 +521,16 @@ class LedgerConvertor():
             filename = self.outFile
             results += str(emacsHeader(filename=filename))
         if not self.noCommodities:
-            results += self.addCommodities()
+            results += self.add_commodities()
         if not self.noAccounts:
-            results += self.addAccounts()
+            results += self.add_accounts()
         if not self.noTransactions:
-            results += self.addTransactions()
+            results += self.add_transactions()
             
         return results
 
 
-def getCurrencySymbol(currencyCode): 
+def get_currency_symbol(currencyCode): 
     """Returns the currency symbol based on the three-letter currency code if available
 
     Returns a string representation of a currency based on the
@@ -549,11 +549,11 @@ def getCurrencySymbol(currencyCode):
 
     Examples
     --------
-    >>> getCurrencySymbol('USD')
+    >>> get_currency_symbol('USD')
     $
-    >>> getCurrencySymbol('EUR')
+    >>> get_currency_symbol('EUR')
     €
-    >>> getCurrencySymbol('GBP')
+    >>> get_currency_symbol('GBP')
     £
     """
     return CurrencySymbols.get_symbol(currencyCode) or currencyCode
