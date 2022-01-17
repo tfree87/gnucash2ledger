@@ -3,7 +3,7 @@
 #+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
 #+options: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
 #+options: timestamp:t title:t toc:t todo:t |:t
-#+title: README
+#+title: Gnucash2Ledger
 #+date: <2021-10-23 Sat>
 #+author: Thomas Freeman
 #+language: en
@@ -11,8 +11,26 @@
 #+exclude_tags: noexport
 #+creator: Emacs 26.3 (Org mode 9.4.6)
 
-* gnucash2ledger
-gnucash2ledger is a Python script based on the Github Gist by nonducor ([[https://gist.github.com/nonducor/ddc97e787810d52d067206a592a35ea7][nonducor/gcash2ledger.py]]). This Python script will take an /uncompressed/ Gnucash file saved in the default XML format and write a text file in a format compatible with John Wiegley's [[https://www.ledger-cli.org/][ledger]] program (Github: [[https://github.com/ledger/ledger][ledger/ledger]]).
+
+Gnucash2Ledger is a Python script based on the Github Gist by nonducor ([[https://gist.github.com/nonducor/ddc97e787810d52d067206a592a35ea7][nonducor/gcash2ledger.py]]). This Python script will take an /uncompressed/ Gnucash file saved in the default XML format and write a text file in a format compatible with John Wiegley's [[https://www.ledger-cli.org/][ledger]] program (Github: [[https://github.com/ledger/ledger][ledger/ledger]]).
+
+#+begin_src plantuml :exports results :file diagram.png
+@startuml
+digraph a {
+
+".gnucash File (XML)" [shape=note]
+Gnucash2Ledger [shape=ellipse]
+"Ledger File (.txt or .dat)" [shape=note]
+
+".gnucash File (XML)" -> Gnucash2Ledger
+
+Gnucash2Ledger -> "Ledger File (.txt or .dat)"
+
+}
+@enduml
+#+end_src
+
+[[file:./diagram.png]]
 
 /Note: gnucash2ledger will only work if the Gnucash data is saved in an uncompressed XML file. If you prefer to save your Gnucash in SQL database formats, checkout the [[https://github.com/sdementen/piecash][piecash]] project./
 

@@ -12,6 +12,7 @@ script will parse the XML file and will not modify the original Gnucash file.
 """
 
 
+# Imports
 import os
 import sys
 import argparse
@@ -105,6 +106,7 @@ class Commodity:
 
 
 class Account:
+
     def __init__(self, accountDb, e, useSymbols=False):
         """Constructs an Account object"""
         self.accountDb = accountDb
@@ -119,19 +121,19 @@ class Account:
             self.commodity = get_currency_symbol(or_else(e.find("act:commodity/cmdty:id", nss), None).text)
         else:
             self.commodity = or_else(e.find("act:commodity/cmdty:id", nss), None).text
-
+            
     def get_parent(self):
         """ Returns the parent account of the current account.
         """
         return self.accountDb[self.parent]
-
+    
     def full_name(self):
         if self.parent is not None and self.get_parent().type != "ROOT":
             prefix = self.get_parent().full_name() + ":"
         else:
             prefix = ""  # ROOT will not be displayed
         return prefix + self.name
-
+    
     def __str__(self):
         """ Returns a string showing a description of each account"""
         outPattern = (
@@ -444,7 +446,7 @@ class LedgerConvertor():
         self.noAccounts = args.no_account_defs
         self.noTransactions = args.no_transactions
         self.emacsHeader = args.emacs_header
-        self.outFile = args.output[0] if args.output else None
+        self.out_file = args.output[0] if args.output else None
         self.gcashData = GnucashData(
             args.INPUT_FILE,
             useSymbols=args.use_symbols,
@@ -530,7 +532,7 @@ class LedgerConvertor():
         return results
 
 
-def get_currency_symbol(currencyCode): 
+def get_currency_symbol(currency_code): 
     """Returns the currency symbol based on the three-letter currency code if available
 
     Returns a string representation of a currency based on the
@@ -556,7 +558,7 @@ def get_currency_symbol(currencyCode):
     >>> get_currency_symbol('GBP')
     £
     """
-    return CurrencySymbols.get_symbol(currencyCode) or currencyCode
+    return CurrencySymbols.get_symbol(currency_code) or currency_code
 
 
 def createParser():
@@ -570,9 +572,9 @@ def createParser():
     -------
     ArgumentParser
         An ArgumentParser object
-
+    
     """
-
+    
     # Create the parser
     parser = argparse.ArgumentParser(
         description="Converts a Gnucash XML file to a text file that can be processed by the Ledger and hledger command line programs.",
@@ -715,13 +717,13 @@ def main():
         # Check if a file with the same name as output file exists
         if os.path.exists(args.output[0]) and not args.force_clobber:
             print(
-                "File {outfile} exists.\nPlease specify a new name or run"
+                "File {out_file} exists.\nPlease specify a new name or run"
                 "script again with -f to force clobbering of existing "
-                "file".format(outfile=args.output[0]))
+                "file".format(out_file=args.output[0]))
         else:
             convertor = LedgerConvertor(args)
-            with open(args.output[0], "w") as outFile:
-                outFile.write(convertor())
+            with open(args.output[0], "w") as out_file:
+                out_file.write(convertor())
                 
     # If no output file is given print data to stdout
     else:
