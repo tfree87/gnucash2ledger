@@ -43,14 +43,16 @@ gnucash2ledger has the following features:
 - Currency codes can be replaced by currency symbols using Python CurrencySymbols library
 - Provides an option to display progress bars (useful for converting very long Gnucash files and you want to verify something is running)
 * Usage
-
+Gnucash2ledger can be called with the following command:
+#+begin_example
+python3 gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] INPUT_FILE
+#+end_example
+Alternatively, the following command can be used to call Gnucash2ledger if ~gnucash2ledger.py~ has permission to run as an executable file:
 #+begin_example
 gnucash2ledger.py [-h] [-c] [-d DATE_FORMAT] [-e] [-f] [-na] [-nc] [-nt] [-o FILENAME] [-p] [--payee-metadata] [-s] [-v] INPUT_FILE
 #+end_example
-
 ** Command Line Arguments
-Output from =gnucash2ledger -h=:
-
+Documentation of the various command line arguments can be seen in the following output from ~gnucash2ledger -h~:
 #+begin_example
 positional arguments:
   input                 a Gnucash XML file to be read
