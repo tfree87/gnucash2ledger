@@ -85,5 +85,5 @@ gnucash2ledger requires that the following Python packages are installed:
 - tqdm
 * Future
 - [ ] Include options to add/remove headers for different sections
-- [ ] Increase parsing speed of Gnucash XML file
+- [ ] Increase parsing speed of Gnucash XML file (consider writing a verison with Go)
 - [ ] Include options for splitting large Gnucash files into multiple ledger files
